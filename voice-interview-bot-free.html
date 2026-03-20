@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InterviewAI — Voice Interview Bot (Free)</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10; --surface: #111318; --surface2: #191c24;
+    --border: rgba(255,255,255,0.08); --border2: rgba(255,255,255,0.14);
+    --text: #f0f2f8; --muted: #8890a4; --accent: #5b6eff; --accent2: #7c8fff;
+    --accent-glow: rgba(91,110,255,0.15); --green: #22c97b; --red: #ff5e5e; --amber: #f5a623;
+    --font: 'Sora', sans-serif; --mono: 'DM Mono', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: linear-gradient(rgba(91,110,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(91,110,255,0.03) 1px,transparent 1px);
+    background-size: 40px 40px; pointer-events: none; z-index: 0;
+  }
+  .app { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2.5rem; }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-mark { width: 32px; height: 32px; border-radius: 8px; background: var(--accent); display: flex; align-items: center; justify-content: center; }
+  .logo-mark svg { width: 18px; height: 18px; fill: #fff; }
+  .logo-text { font-size: 1rem; font-weight: 600; letter-spacing: -0.02em; }
+  .logo-text span { color: var(--accent2); }
+  .badge { font-size: 11px; font-family: var(--mono); background: rgba(34,201,123,0.1); color: var(--green); border: 1px solid rgba(34,201,123,0.3); padding: 4px 10px; border-radius: 20px; letter-spacing: 0.04em; }
+
+  /* API Key setup banner */
+  #api-banner { background: var(--surface); border: 1px solid rgba(245,166,35,0.3); border-radius: 14px; padding: 1.5rem; margin-bottom: 1.5rem; }
+  #api-banner h3 { font-size: 0.85rem; font-weight: 600; color: var(--amber); margin-bottom: 0.5rem; }
+  #api-banner p { font-size: 0.82rem; color: var(--muted); line-height: 1.6; margin-bottom: 1rem; }
+  #api-banner a { color: var(--accent2); text-decoration: none; }
+  #api-banner a:hover { text-decoration: underline; }
+  .api-row { display: flex; gap: 8px; }
+  .api-input { flex: 1; background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 0.82rem; padding: 0.6rem 0.8rem; border-radius: 8px; outline: none; transition: border 0.15s; }
+  .api-input:focus { border-color: var(--accent); }
+  .api-save-btn { padding: 0.6rem 1rem; background: var(--accent); border: none; color: #fff; font-family: var(--font); font-size: 0.82rem; font-weight: 600; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+  .api-save-btn:hover { background: var(--accent2); }
+
+  /* Setup */
+  #setup-screen { display: block; } #interview-screen { display: none; } #results-screen { display: none; }
+  .setup-hero { text-align: center; padding: 2rem 0 1.5rem; }
+  .setup-hero h1 { font-size: 2.4rem; font-weight: 600; letter-spacing: -0.04em; line-height: 1.15; margin-bottom: 0.8rem; }
+  .setup-hero h1 em { color: var(--accent2); font-style: normal; }
+  .setup-hero p { font-size: 1rem; color: var(--muted); max-width: 460px; margin: 0 auto; line-height: 1.7; }
+  .setup-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; margin-top: 1.5rem; }
+  .setup-card h2 { font-size: 0.75rem; font-family: var(--mono); color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 1.2rem; }
+  .domain-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(155px,1fr)); gap: 10px; margin-bottom: 1.5rem; }
+  .domain-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem 1rem; cursor: pointer; text-align: left; transition: all 0.15s; display: flex; flex-direction: column; gap: 4px; }
+  .domain-btn:hover { border-color: var(--border2); background: #1e2130; }
+  .domain-btn.selected { border-color: var(--accent); background: var(--accent-glow); }
+  .domain-btn .d-icon { font-size: 1.3rem; margin-bottom: 2px; }
+  .domain-btn .d-name { font-size: 0.85rem; font-weight: 500; }
+  .domain-btn .d-sub { font-size: 0.72rem; color: var(--muted); }
+  .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.2rem; }
+  .config-item label { display: block; font-size: 0.75rem; font-family: var(--mono); color: var(--muted); margin-bottom: 6px; letter-spacing: 0.06em; }
+  .config-item select, .config-item input { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-family: var(--font); font-size: 0.88rem; padding: 0.6rem 0.8rem; border-radius: 8px; outline: none; transition: border 0.15s; -webkit-appearance: none; }
+  .config-item select:focus, .config-item input:focus { border-color: var(--accent); }
+  .start-btn { width: 100%; padding: 0.9rem; background: var(--accent); border: none; color: #fff; font-family: var(--font); font-size: 0.95rem; font-weight: 600; border-radius: 10px; cursor: pointer; transition: all 0.15s; letter-spacing: -0.01em; }
+  .start-btn:hover { background: var(--accent2); transform: translateY(-1px); }
+  .start-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* Interview */
+  .interview-layout { display: grid; grid-template-columns: 1fr 290px; gap: 1.5rem; align-items: start; }
+  @media(max-width:680px){ .interview-layout { grid-template-columns: 1fr; } }
+  .status-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.2rem; }
+  .progress-info { display: flex; align-items: center; gap: 12px; }
+  .q-counter { font-size: 0.78rem; font-family: var(--mono); color: var(--muted); }
+  .progress-track { width: 110px; height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; }
+  .domain-tag { font-size: 11px; font-family: var(--mono); color: var(--accent2); background: var(--accent-glow); border: 1px solid rgba(91,110,255,0.2); padding: 3px 8px; border-radius: 20px; }
+  .question-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; margin-bottom: 1rem; position: relative; overflow: hidden; }
+  .question-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent), transparent); }
+  .q-label { font-size: 0.72rem; font-family: var(--mono); color: var(--accent2); letter-spacing: 0.1em; margin-bottom: 0.8rem; }
+  .q-text { font-size: 1rem; font-weight: 400; line-height: 1.65; color: var(--text); }
+  .ai-thinking { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.85rem; padding: 1rem 0; }
+  .dots span { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--accent2); animation: dot-pulse 1.2s ease-in-out infinite; }
+  .dots span:nth-child(2){animation-delay:0.2s}.dots span:nth-child(3){animation-delay:0.4s}
+  @keyframes dot-pulse{0%,80%,100%{opacity:0.2;transform:scale(0.8)}40%{opacity:1;transform:scale(1)}}
+  .voice-area { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; }
+  .mic-center { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+  .mic-btn { width: 72px; height: 72px; border-radius: 50%; border: 2px solid var(--border2); background: var(--surface2); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .mic-btn:hover { border-color: var(--accent); background: var(--accent-glow); }
+  .mic-btn.recording { border-color: var(--red); background: rgba(255,94,94,0.1); animation: pulse-ring 1.5s ease-in-out infinite; }
+  .mic-btn.speaking { border-color: var(--green); background: rgba(34,201,123,0.1); }
+  .mic-btn svg { width: 28px; height: 28px; }
+  @keyframes pulse-ring{0%{box-shadow:0 0 0 0 rgba(255,94,94,0.4)}70%{box-shadow:0 0 0 16px rgba(255,94,94,0)}100%{box-shadow:0 0 0 0 rgba(255,94,94,0)}}
+  .mic-status { font-size: 0.82rem; color: var(--muted); font-family: var(--mono); }
+  .mic-status.active { color: var(--red); } .mic-status.speaking-state { color: var(--green); }
+  .transcript-box { min-height: 70px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem; font-size: 0.85rem; line-height: 1.6; color: var(--text); margin-top: 1rem; font-family: var(--mono); white-space: pre-wrap; word-break: break-word; }
+  .transcript-placeholder { color: var(--muted); font-style: italic; }
+  .voice-actions { display: flex; gap: 8px; margin-top: 1rem; }
+  .action-btn { flex: 1; padding: 0.55rem; background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-family: var(--font); font-size: 0.8rem; border-radius: 8px; cursor: pointer; transition: all 0.15s; font-weight: 500; }
+  .action-btn:hover { border-color: var(--border2); background: #1e2130; }
+  .action-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .action-btn.primary:hover { background: var(--accent2); }
+  .action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .sidebar-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem; margin-bottom: 1rem; }
+  .sidebar-card h3 { font-size: 0.72rem; font-family: var(--mono); color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 1rem; }
+  .history-item { padding: 0.6rem 0; border-bottom: 1px solid var(--border); }
+  .history-item:last-child { border-bottom: none; }
+  .history-q { font-size: 0.78rem; color: var(--muted); margin-bottom: 3px; line-height: 1.4; }
+  .history-a { font-size: 0.78rem; color: var(--text); line-height: 1.4; }
+  .history-score { font-size: 0.7rem; font-family: var(--mono); display: inline-block; padding: 1px 6px; border-radius: 4px; margin-top: 3px; }
+  .score-high{background:rgba(34,201,123,0.15);color:var(--green)} .score-mid{background:rgba(245,166,35,0.15);color:var(--amber)} .score-low{background:rgba(255,94,94,0.15);color:var(--red)}
+  .tip-text { font-size: 0.8rem; color: var(--muted); line-height: 1.6; }
+  .tip-text strong { color: var(--text); font-weight: 500; }
+  .waveform { display: flex; align-items: center; justify-content: center; gap: 3px; height: 28px; }
+  .wave-bar { width: 3px; background: var(--accent); border-radius: 2px; transition: height 0.1s; }
+
+  /* Results */
+  .results-header { text-align: center; padding: 2.5rem 0 2rem; }
+  .results-header h1 { font-size: 2rem; font-weight: 600; letter-spacing: -0.03em; margin-bottom: 0.5rem; }
+  .results-header p { color: var(--muted); font-size: 0.9rem; }
+  .score-circle-wrap { display: flex; justify-content: center; margin: 2rem 0; }
+  .score-circle { width: 130px; height: 130px; border-radius: 50%; border: 3px solid var(--accent); display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--accent-glow); }
+  .score-number { font-size: 2.4rem; font-weight: 600; color: var(--accent2); letter-spacing: -0.04em; }
+  .score-label { font-size: 0.72rem; font-family: var(--mono); color: var(--muted); margin-top: -2px; }
+  .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+  @media(max-width:560px){.results-grid{grid-template-columns:1fr}}
+  .result-metric { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem; }
+  .result-metric .rm-label { font-size: 0.72rem; font-family: var(--mono); color: var(--muted); letter-spacing: 0.06em; margin-bottom: 6px; }
+  .result-metric .rm-val { font-size: 1.4rem; font-weight: 600; }
+  .feedback-section { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; margin-bottom: 1rem; }
+  .feedback-section h3 { font-size: 0.78rem; font-family: var(--mono); color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 1rem; }
+  .feedback-text { font-size: 0.9rem; line-height: 1.75; color: var(--text); }
+  .q-review { border-bottom: 1px solid var(--border); padding: 1rem 0; }
+  .q-review:last-child { border-bottom: none; }
+  .q-review-q { font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+  .q-review-a { font-size: 0.85rem; color: var(--text); margin-bottom: 6px; line-height: 1.5; }
+  .q-review-fb { font-size: 0.8rem; color: var(--accent2); line-height: 1.5; }
+  .restart-btn { display: block; width: 100%; max-width: 300px; margin: 2rem auto 0; padding: 0.85rem; background: var(--accent); border: none; color: #fff; font-family: var(--font); font-size: 0.9rem; font-weight: 600; border-radius: 10px; cursor: pointer; text-align: center; transition: background 0.15s; }
+  .restart-btn:hover { background: var(--accent2); }
+  .notif { position: fixed; top: 20px; right: 20px; background: var(--surface); border: 1px solid var(--border2); border-radius: 10px; padding: 0.75rem 1rem; font-size: 0.82rem; color: var(--text); z-index: 100; max-width: 320px; transform: translateX(120%); transition: transform 0.3s ease; }
+  .notif.show { transform: translateX(0); }
+  .notif.error { border-color: rgba(255,94,94,0.4); color: var(--red); }
+  .model-row { display: flex; gap: 6px; margin-bottom: 1.2rem; flex-wrap: wrap; }
+  .model-pill { font-size: 11px; font-family: var(--mono); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); cursor: pointer; transition: all 0.15s; }
+  .model-pill.selected { border-color: var(--green); color: var(--green); background: rgba(34,201,123,0.08); }
+</style>
+</head>
+<body>
+<div class="notif" id="notif"></div>
+<div class="app">
+  <header>
+    <div class="logo">
+      <div class="logo-mark"><svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zm-1 18.93V22h2v-2.07A8 8 0 0 0 20 12h-2a6 6 0 0 1-12 0H4a8 8 0 0 0 7 7.93z"/></svg></div>
+      <div class="logo-text">Interview<span>AI</span></div>
+    </div>
+    <div class="badge">100% FREE</div>
+  </header>
+
+  <!-- API KEY BANNER -->
+  <div id="api-banner">
+    <h3>🔑 Enter your Groq API Key (free)</h3>
+    <p>
+      Get a free key at <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a> — no credit card needed.
+      Free tier: 14,400 requests/day. Your key is stored only in your browser.
+    </p>
+    <div class="api-row">
+      <input class="api-input" type="password" id="groq-key-input" placeholder="gsk_..." />
+      <button class="api-save-btn" onclick="saveApiKey()">Save Key</button>
+    </div>
+    <p style="margin-top:0.6rem;font-size:0.75rem;">Key saved? <span id="key-status" style="color:var(--muted)">Not set</span></p>
+  </div>
+
+  <!-- SETUP -->
+  <div id="setup-screen">
+    <div class="setup-hero">
+      <h1>Your AI Interview<br><em>Starts Here</em></h1>
+      <p>Practice domain-specific interviews with real-time voice interaction and AI-powered feedback — completely free.</p>
+    </div>
+    <div class="setup-card">
+      <h2>AI model (all free on Groq)</h2>
+      <div class="model-row">
+        <span class="model-pill selected" data-model="llama-3.3-70b-versatile" onclick="selectModel(this)">LLaMA 3.3 70B (best quality)</span>
+        <span class="model-pill" data-model="llama-3.1-8b-instant" onclick="selectModel(this)">LLaMA 3.1 8B (faster)</span>
+        <span class="model-pill" data-model="gemma2-9b-it" onclick="selectModel(this)">Gemma 2 9B</span>
+      </div>
+      <h2>Choose your domain</h2>
+      <div class="domain-grid" id="domain-grid">
+        <button class="domain-btn" data-domain="Finance" onclick="selectDomain(this)"><div class="d-icon">📈</div><div class="d-name">Finance</div><div class="d-sub">Banking, investment</div></button>
+        <button class="domain-btn" data-domain="Marketing" onclick="selectDomain(this)"><div class="d-icon">📣</div><div class="d-name">Marketing</div><div class="d-sub">Brand, growth, digital</div></button>
+        <button class="domain-btn" data-domain="Product Management" onclick="selectDomain(this)"><div class="d-icon">🗂️</div><div class="d-name">Product</div><div class="d-sub">Roadmap, strategy</div></button>
+        <button class="domain-btn" data-domain="Data Science" onclick="selectDomain(this)"><div class="d-icon">🔬</div><div class="d-name">Data Science</div><div class="d-sub">ML, analytics, stats</div></button>
+        <button class="domain-btn" data-domain="Human Resources" onclick="selectDomain(this)"><div class="d-icon">👥</div><div class="d-name">HR</div><div class="d-sub">Talent, culture</div></button>
+        <button class="domain-btn" data-domain="Sales" onclick="selectDomain(this)"><div class="d-icon">🤝</div><div class="d-name">Sales</div><div class="d-sub">B2B, negotiation</div></button>
+        <button class="domain-btn" data-domain="Operations" onclick="selectDomain(this)"><div class="d-icon">⚙️</div><div class="d-name">Operations</div><div class="d-sub">Supply chain</div></button>
+        <button class="domain-btn" data-domain="Legal" onclick="selectDomain(this)"><div class="d-icon">⚖️</div><div class="d-name">Legal</div><div class="d-sub">Contracts, compliance</div></button>
+      </div>
+      <h2>Configure interview</h2>
+      <div class="config-row">
+        <div class="config-item"><label>EXPERIENCE LEVEL</label>
+          <select id="level-select"><option value="entry">Entry (0-2 yrs)</option><option value="mid" selected>Mid (3-5 yrs)</option><option value="senior">Senior (6+ yrs)</option></select></div>
+        <div class="config-item"><label>QUESTIONS</label>
+          <select id="q-count-select"><option value="3">3 (quick)</option><option value="5" selected>5 (standard)</option><option value="8">8 (thorough)</option></select></div>
+      </div>
+      <div class="config-row" style="margin-bottom:1.5rem">
+        <div class="config-item"><label>YOUR NAME</label><input type="text" id="candidate-name" placeholder="e.g. Alex" /></div>
+        <div class="config-item"><label>VOICE SPEED</label>
+          <select id="voice-speed"><option value="0.85">Slow</option><option value="1" selected>Normal</option><option value="1.2">Fast</option></select></div>
+      </div>
+      <button class="start-btn" id="start-btn" onclick="startInterview()" disabled>Select a domain to begin →</button>
+    </div>
+  </div>
+
+  <!-- INTERVIEW -->
+  <div id="interview-screen">
+    <div class="interview-layout">
+      <div class="interview-main">
+        <div class="status-bar">
+          <div class="progress-info">
+            <span class="q-counter" id="q-counter">Question 1 / 5</span>
+            <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+          </div>
+          <span class="domain-tag" id="domain-tag">FINANCE</span>
+        </div>
+        <div class="question-card" id="question-card">
+          <div class="q-label">CURRENT QUESTION</div>
+          <div class="q-text" id="q-text">Loading your question...</div>
+          <div class="ai-thinking" id="ai-thinking" style="display:none"><div class="dots"><span></span><span></span><span></span></div><span>Generating follow-up...</span></div>
+        </div>
+        <div class="voice-area">
+          <div class="mic-center">
+            <button class="mic-btn" id="mic-btn" onclick="toggleRecording()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zm-1 18.93V22h2v-2.07A8 8 0 0 0 20 12h-2a6 6 0 0 1-12 0H4a8 8 0 0 0 7 7.93z"/></svg>
+            </button>
+            <div class="waveform" id="waveform">
+              <div class="wave-bar" style="height:6px"></div><div class="wave-bar" style="height:14px"></div>
+              <div class="wave-bar" style="height:8px"></div><div class="wave-bar" style="height:20px"></div>
+              <div class="wave-bar" style="height:10px"></div><div class="wave-bar" style="height:16px"></div>
+              <div class="wave-bar" style="height:6px"></div><div class="wave-bar" style="height:12px"></div>
+            </div>
+            <div class="mic-status" id="mic-status">Click to start speaking</div>
+          </div>
+          <div class="transcript-box" id="transcript-box"><span class="transcript-placeholder">Your answer will appear here as you speak...</span></div>
+          <div class="voice-actions">
+            <button class="action-btn" onclick="replayQuestion()">🔊 Replay</button>
+            <button class="action-btn" onclick="clearTranscript()">✕ Clear</button>
+            <button class="action-btn primary" id="submit-btn" onclick="submitAnswer()" disabled>Submit →</button>
+          </div>
+        </div>
+      </div>
+      <div class="sidebar">
+        <div class="sidebar-card"><h3>Session Log</h3><div id="history-list"><p class="tip-text">Your answered questions will appear here.</p></div></div>
+        <div class="sidebar-card">
+          <h3>Tips</h3>
+          <p class="tip-text"><strong>STAR Method:</strong> Situation, Task, Action, Result.<br><br><strong>Be specific:</strong> Use real numbers and outcomes.<br><br><strong>Pause ok:</strong> The mic waits for you.</p>
+        </div>
+        <button class="action-btn" style="width:100%;margin-top:0.5rem;" onclick="endInterviewEarly()">End & See Results</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results-screen">
+    <div class="results-header"><h1>Interview Complete 🎉</h1><p id="results-subtitle">Here's your detailed performance breakdown.</p></div>
+    <div class="score-circle-wrap"><div class="score-circle"><div class="score-number" id="final-score">—</div><div class="score-label">OVERALL</div></div></div>
+    <div class="results-grid">
+      <div class="result-metric"><div class="rm-label">QUESTIONS ANSWERED</div><div class="rm-val" id="rm-q-count">0</div></div>
+      <div class="result-metric"><div class="rm-label">AVG SCORE</div><div class="rm-val" id="rm-avg">—</div></div>
+      <div class="result-metric"><div class="rm-label">DOMAIN</div><div class="rm-val" id="rm-domain" style="font-size:1rem">—</div></div>
+      <div class="result-metric"><div class="rm-label">LEVEL</div><div class="rm-val" id="rm-level" style="font-size:1rem">—</div></div>
+    </div>
+    <div class="feedback-section"><h3>Overall Feedback</h3><div class="feedback-text" id="overall-feedback">Generating feedback...</div></div>
+    <div class="feedback-section"><h3>Question-by-Question Review</h3><div id="q-review-list"></div></div>
+    <button class="restart-btn" onclick="restart()">Start New Interview</button>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ────────────────────────────────────────────
+const GROQ_API = 'https://api.groq.com/openai/v1/chat/completions';
+let groqKey = localStorage.getItem('groqKey') || '';
+let selectedModel = 'llama-3.3-70b-versatile';
+let selectedDomain = null;
+let questions = [], currentQ = 0, answers = [], scores = [], feedbacks = [];
+let recognition = null, isRecording = false, isBotSpeaking = false;
+let currentTranscript = '', totalQuestions = 5, waveInterval = null;
+
+// ─── INIT ───────────────────────────────────────────────
+window.onload = () => {
+  if (groqKey) {
+    document.getElementById('groq-key-input').value = groqKey;
+    document.getElementById('key-status').textContent = '✓ Key saved';
+    document.getElementById('key-status').style.color = 'var(--green)';
+  }
+};
+
+function saveApiKey() {
+  const val = document.getElementById('groq-key-input').value.trim();
+  if (!val.startsWith('gsk_')) { showNotif('Key should start with gsk_', true); return; }
+  groqKey = val;
+  localStorage.setItem('groqKey', groqKey);
+  document.getElementById('key-status').textContent = '✓ Key saved';
+  document.getElementById('key-status').style.color = 'var(--green)';
+  showNotif('API key saved!');
+}
+
+function selectModel(el) {
+  document.querySelectorAll('.model-pill').forEach(p => p.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedModel = el.dataset.model;
+}
+
+function selectDomain(btn) {
+  document.querySelectorAll('.domain-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedDomain = btn.dataset.domain;
+  const sb = document.getElementById('start-btn');
+  sb.disabled = !groqKey;
+  sb.textContent = groqKey ? `Start ${selectedDomain} Interview →` : 'Save your Groq key above first';
+}
+
+function showNotif(msg, isError=false) {
+  const el = document.getElementById('notif');
+  el.textContent = msg; el.className = 'notif show' + (isError?' error':'');
+  setTimeout(() => el.className='notif', 3500);
+}
+
+// ─── GROQ API CALL ──────────────────────────────────────
+async function callGroq(systemPrompt, userMessage) {
+  if (!groqKey) throw new Error('No API key set');
+  const res = await fetch(GROQ_API, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: selectedModel,
+      max_tokens: 800,
+      temperature: 0.7,
+      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }]
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error?.message || 'Groq API error');
+  }
+  const data = await res.json();
+  return data.choices[0].message.content;
+}
+
+// ─── GENERATE QUESTIONS ─────────────────────────────────
+async function generateQuestions() {
+  const level = document.getElementById('level-select').value;
+  const count = parseInt(document.getElementById('q-count-select').value);
+  totalQuestions = count;
+  const sys = `You are an expert interviewer for ${selectedDomain} roles. Generate exactly ${count} interview questions for a ${level}-level professional. Return ONLY a JSON array of strings, no markdown, no explanation. Example: ["Question 1?","Question 2?"]`;
+  const raw = await callGroq(sys, `Generate ${count} ${selectedDomain} questions for ${level} level.`);
+  const clean = raw.replace(/```json|```/g,'').trim();
+  const match = clean.match(/\[[\s\S]*\]/);
+  return JSON.parse(match ? match[0] : clean);
+}
+
+// ─── START ──────────────────────────────────────────────
+async function startInterview() {
+  if (!selectedDomain) return;
+  if (!groqKey) { showNotif('Please save your Groq API key first.', true); return; }
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('interview-screen').style.display = 'block';
+  document.getElementById('domain-tag').textContent = selectedDomain.toUpperCase();
+  document.getElementById('q-text').textContent = 'Generating your questions...';
+  document.getElementById('ai-thinking').style.display = 'flex';
+  try {
+    questions = await generateQuestions();
+    currentQ = 0; answers = []; scores = []; feedbacks = [];
+    showQuestion();
+  } catch(e) {
+    document.getElementById('ai-thinking').style.display = 'none';
+    document.getElementById('q-text').textContent = 'Error: ' + e.message;
+    showNotif('Error: ' + e.message, true);
+  }
+}
+
+// ─── SHOW QUESTION ──────────────────────────────────────
+function showQuestion() {
+  document.getElementById('ai-thinking').style.display = 'none';
+  const q = questions[currentQ];
+  document.getElementById('q-text').textContent = q;
+  document.getElementById('q-counter').textContent = `Question ${currentQ+1} / ${Math.min(questions.length, totalQuestions)}`;
+  document.getElementById('progress-fill').style.width = (currentQ/totalQuestions*100)+'%';
+  clearTranscript();
+  document.getElementById('submit-btn').disabled = true;
+  setTimeout(() => speakText(q), 400);
+}
+
+// ─── TTS ────────────────────────────────────────────────
+function speakText(text) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  const speed = parseFloat(document.getElementById('voice-speed').value);
+  utter.rate = speed; utter.pitch = 1; utter.volume = 1;
+  const voices = window.speechSynthesis.getVoices();
+  const pref = voices.find(v=>v.lang.startsWith('en')&&v.name.includes('Google')) || voices.find(v=>v.lang.startsWith('en')) || voices[0];
+  if (pref) utter.voice = pref;
+  isBotSpeaking = true; updateMicUI('speaking');
+  utter.onend = () => { isBotSpeaking = false; updateMicUI('idle'); };
+  utter.onerror = () => { isBotSpeaking = false; updateMicUI('idle'); };
+  window.speechSynthesis.speak(utter);
+}
+
+function replayQuestion() { speakText(questions[currentQ]); }
+
+// ─── MIC UI ─────────────────────────────────────────────
+function updateMicUI(state) {
+  const btn = document.getElementById('mic-btn');
+  const status = document.getElementById('mic-status');
+  btn.className = 'mic-btn';
+  if (state==='recording') {
+    btn.classList.add('recording');
+    status.textContent='Listening... click to stop'; status.className='mic-status active';
+    startWave();
+  } else if (state==='speaking') {
+    btn.classList.add('speaking');
+    status.textContent='AI is speaking...'; status.className='mic-status speaking-state';
+    stopWave();
+  } else {
+    status.textContent='Click to start speaking'; status.className='mic-status';
+    stopWave();
+  }
+}
+
+function startWave() {
+  stopWave();
+  const bars = document.querySelectorAll('.wave-bar');
+  waveInterval = setInterval(()=>{ bars.forEach(b=>{b.style.height=(4+Math.random()*22)+'px';}); }, 120);
+}
+function stopWave() {
+  if (waveInterval) clearInterval(waveInterval);
+  [6,14,8,20,10,16,6,12].forEach((h,i)=>{ const b=document.querySelectorAll('.wave-bar')[i]; if(b) b.style.height=h+'px'; });
+}
+
+// ─── RECORDING ──────────────────────────────────────────
+function toggleRecording() {
+  if (isBotSpeaking) { window.speechSynthesis.cancel(); isBotSpeaking=false; }
+  if (isRecording) { stopRecording(); return; }
+  startRecording();
+}
+
+function startRecording() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showNotif('Voice not supported in this browser. Use Chrome or Edge.', true); return; }
+  recognition = new SR();
+  recognition.lang='en-US'; recognition.continuous=true; recognition.interimResults=true;
+  recognition.onstart = () => { isRecording=true; updateMicUI('recording'); };
+  recognition.onresult = (e) => {
+    let final='', interim='';
+    for (let i=e.resultIndex;i<e.results.length;i++) {
+      if(e.results[i].isFinal) final+=e.results[i][0].transcript;
+      else interim+=e.results[i][0].transcript;
+    }
+    currentTranscript+=final;
+    const tb=document.getElementById('transcript-box');
+    tb.textContent=currentTranscript+(interim?' '+interim:'');
+    if(currentTranscript.trim().length>10) document.getElementById('submit-btn').disabled=false;
+  };
+  recognition.onerror=(e)=>{ showNotif('Mic error: '+e.error,true); isRecording=false; updateMicUI('idle'); };
+  recognition.onend=()=>{ if(isRecording){isRecording=false;updateMicUI('idle');} };
+  recognition.start();
+}
+
+function stopRecording() {
+  if(recognition) recognition.stop();
+  isRecording=false; updateMicUI('idle');
+}
+
+function clearTranscript() {
+  currentTranscript='';
+  document.getElementById('transcript-box').innerHTML='<span class="transcript-placeholder">Your answer will appear here as you speak...</span>';
+  document.getElementById('submit-btn').disabled=true;
+}
+
+// ─── SUBMIT ANSWER ──────────────────────────────────────
+async function submitAnswer() {
+  if(isRecording) stopRecording();
+  const tb = document.getElementById('transcript-box');
+  const answer = (currentTranscript||tb.textContent||'').trim();
+  if(!answer||answer.includes('Your answer will appear')){ showNotif('Please record an answer first.',true); return; }
+  answers.push(answer);
+  document.getElementById('submit-btn').disabled=true;
+  document.getElementById('ai-thinking').style.display='flex';
+
+  try {
+    const level = document.getElementById('level-select').value;
+    const sys = `You are an expert ${selectedDomain} interview evaluator. Return ONLY valid JSON, no markdown:
+{"score":<1-10>,"feedback":"<2-3 sentences of constructive feedback>","followup":"<a relevant follow-up question or empty string>"}`;
+    const raw = await callGroq(sys, `Domain:${selectedDomain} Level:${level}\nQuestion:"${questions[currentQ]}"\nAnswer:"${answer}"`);
+    const clean = raw.replace(/```json|```/g,'').trim();
+    const match = clean.match(/\{[\s\S]*\}/);
+    const result = JSON.parse(match?match[0]:clean);
+    scores.push(result.score||5);
+    feedbacks.push(result.feedback||'');
+    addToHistory(questions[currentQ], answer, result.score||5);
+
+    if(result.followup&&result.followup.trim()&&currentQ<totalQuestions-1) {
+      questions.splice(currentQ+1,0,result.followup.trim());
+    }
+
+    currentQ++;
+    document.getElementById('ai-thinking').style.display='none';
+    if(currentQ>=questions.length||currentQ>=totalQuestions) showResults();
+    else showQuestion();
+  } catch(e) {
+    document.getElementById('ai-thinking').style.display='none';
+    showNotif('AI error: '+e.message, true);
+    scores.push(5); feedbacks.push('Evaluation unavailable.');
+    addToHistory(questions[currentQ], answer, 5);
+    currentQ++;
+    if(currentQ>=questions.length||currentQ>=totalQuestions) showResults();
+    else showQuestion();
+  }
+}
+
+function addToHistory(q,a,score) {
+  const list=document.getElementById('history-list');
+  if(list.children.length===1&&list.children[0].tagName==='P') list.innerHTML='';
+  const cls=score>=7?'score-high':score>=5?'score-mid':'score-low';
+  list.innerHTML+=`<div class="history-item">
+    <div class="history-q">Q${answers.length}: ${q.substring(0,55)}${q.length>55?'...':''}</div>
+    <div class="history-a">${a.substring(0,80)}${a.length>80?'...':''}</div>
+    <span class="history-score ${cls}">${score}/10</span>
+  </div>`;
+}
+
+function endInterviewEarly() {
+  if(answers.length===0){showNotif('Answer at least one question first.',true);return;}
+  if(isRecording) stopRecording();
+  showResults();
+}
+
+// ─── RESULTS ────────────────────────────────────────────
+async function showResults() {
+  if(isRecording) stopRecording();
+  window.speechSynthesis.cancel();
+  document.getElementById('interview-screen').style.display='none';
+  document.getElementById('results-screen').style.display='block';
+  const name = document.getElementById('candidate-name').value||'Candidate';
+  const level = document.getElementById('level-select').value;
+  const avg = scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length*10)/10:0;
+  document.getElementById('final-score').textContent=Math.round(avg*10)+'%';
+  document.getElementById('rm-q-count').textContent=answers.length;
+  document.getElementById('rm-avg').textContent=avg+' / 10';
+  document.getElementById('rm-domain').textContent=selectedDomain;
+  document.getElementById('rm-level').textContent=level.charAt(0).toUpperCase()+level.slice(1);
+  document.getElementById('results-subtitle').textContent=`Great effort, ${name}! Here's your detailed performance.`;
+
+  const reviewList=document.getElementById('q-review-list');
+  reviewList.innerHTML='';
+  for(let i=0;i<answers.length;i++){
+    const sc=scores[i]||5;
+    const cls=sc>=7?'score-high':sc>=5?'score-mid':'score-low';
+    reviewList.innerHTML+=`<div class="q-review">
+      <div class="q-review-q">Q${i+1}: ${questions[i]}</div>
+      <div class="q-review-a">${answers[i]}</div>
+      <div class="q-review-fb">💬 ${feedbacks[i]||'No feedback available.'}</div>
+      <span class="history-score ${cls}" style="margin-top:6px;display:inline-block">${sc}/10</span>
+    </div>`;
+  }
+
+  try {
+    const sys=`You are a supportive career coach. Write 3-4 sentences of overall interview feedback for ${name}, who completed a ${selectedDomain} interview at ${level} level with an average score of ${avg}/10. Be encouraging and specific.`;
+    const fb=await callGroq(sys,`Scores: ${scores.join(', ')}. Domain: ${selectedDomain}.`);
+    document.getElementById('overall-feedback').textContent=fb;
+  } catch(e) {
+    document.getElementById('overall-feedback').textContent=`You completed ${answers.length} question(s) in ${selectedDomain} with an average score of ${avg}/10. Review the individual feedback below.`;
+  }
+}
+
+function restart() {
+  selectedDomain=null; questions=[]; currentQ=0; answers=[]; scores=[]; feedbacks=[];
+  document.querySelectorAll('.domain-btn').forEach(b=>b.classList.remove('selected'));
+  const sb=document.getElementById('start-btn');
+  sb.disabled=true; sb.textContent='Select a domain to begin →';
+  document.getElementById('history-list').innerHTML='<p class="tip-text">Your answered questions will appear here.</p>';
+  document.getElementById('results-screen').style.display='none';
+  document.getElementById('setup-screen').style.display='block';
+  clearTranscript();
+}
+
+if('speechSynthesis' in window){
+  window.speechSynthesis.onvoiceschanged=()=>window.speechSynthesis.getVoices();
+  window.speechSynthesis.getVoices();
+}
+</script>
+</body>
+</html>
